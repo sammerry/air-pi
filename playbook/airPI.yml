@@ -1,0 +1,43 @@
+---
+- hosts: all
+  sudo: true
+
+  vars: 
+
+    SQS_QUEUE: <your queue>
+    AWS_REGION: <your region>
+    AWS_KEY: <your key>
+    AWS_SECRET: <your secret>
+
+  roles:
+    - ANXS.apt
+    - ANXS.python
+
+  tasks:
+
+    - name: turn off firewall
+      ufw: state=enabled policy=allow
+
+    - name: 'Update insserv'
+      apt: name=insserv state=latest
+
+    - name: 'Create Beaver:Beaver group'
+      group: name=beaver state=present
+    - user: name=beaver shell=/bin/bash groups=beaver append=yes
+    - file: path=/etc/beaver state=directory
+
+    - name: 'Setup logrotate config and requirements.txt'
+      template: src=./templates/beaver_logrotate.conf dest=/etc/logrotate.d/beaver.conf
+    - template: src=./templates/device_logrotate.conf dest=/etc/logrotate.d/airsensor.conf
+    - template: src=./templates/requirements.txt dest=/etc/beaver/requirements.txt
+
+    - name: 'Import Beaver Configs'
+      template: src=./templates/beaver_init.conf dest=/etc/init/beaver.conf
+    - template: src=./templates/beaver.conf dest=/etc/beaver/beaver.conf
+
+    - name: 'Install python requirements'
+      pip: requirements=/etc/beaver/requirements.txt
+
+    - name: 'Start Beaver'
+      service: name=beaver state=started
+
